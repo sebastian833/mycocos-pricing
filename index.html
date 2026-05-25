@@ -1,7 +1,848 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motor de Pricing — MyCOCOS</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:#0e0f11;display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-card{background:#16181c;border:1px solid #2a2d34;border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:380px;display:flex;flex-direction:column;gap:1.5rem}
+.login-logo{display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:#f0f0ee}
+.login-dot{width:10px;height:10px;background:#c8f060;border-radius:50%}
+.login-sub{font-size:12px;color:#7a7f8a;margin-top:4px;font-family:'DM Mono',monospace}
+.login-field{display:flex;flex-direction:column;gap:6px}
+.login-field label{font-size:11px;color:#7a7f8a;letter-spacing:.05em;font-family:'DM Mono',monospace}
+.login-field input{background:#1e2126;border:1px solid #2a2d34;border-radius:8px;padding:12px 14px;color:#f0f0ee;font-family:'DM Mono',monospace;font-size:14px;outline:none;transition:border-color .15s;width:100%}
+.login-field input:focus{border-color:#60d4f0}
+.login-field input::placeholder{color:#4a4f5a}
+.login-btn{background:#c8f060;color:#0e0f11;border:none;border-radius:8px;padding:12px;font-family:'DM Mono',monospace;font-size:14px;font-weight:500;cursor:pointer;width:100%;transition:background .15s}
+.login-btn:hover{background:#d4f470}
+.login-error{background:rgba(240,96,96,.1);border:1px solid rgba(240,96,96,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#f06060;display:none;font-family:'DM Mono',monospace}
+.login-hint{font-size:11px;color:#4a4f5a;text-align:center;font-family:'DM Mono',monospace}
+/* APP */
+#app-screen{display:none}
+</style>
+</head>
+<body>
 
-MyCOCOS · Pricing
-Motor de pricing dinámico — acceso interno
-CONTRASEÑA DE ACCESO
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div>
+      <div class="login-logo"><div class="login-dot"></div>MyCOCOS · Pricing</div>
+      <div class="login-sub">Motor de pricing dinámico — acceso interno</div>
+    </div>
+    <div class="login-field">
+      <label>CONTRASEÑA DE ACCESO</label>
+      <input type="password" id="pwd" placeholder="Ingresá la contraseña..." onkeydown="if(event.key==='Enter')unlock()">
+    </div>
+    <div class="login-error" id="err">Contraseña incorrecta. Intentá de nuevo.</div>
+    <button class="login-btn" onclick="unlock()">Ingresar →</button>
+    <div class="login-hint">Uso exclusivo equipo MyCOCOS · Todos los cálculos corren en el navegador</div>
+  </div>
+</div>
 
-Ingresar →
-Uso exclusivo equipo MyCOCOS · Todos los cálculos corren en el navegador
+<!-- APP (hidden until login) -->
+<div id="app-screen"></div>
+
+<script>
+// SHA-256 de "mycocos2025"
+const PASS_HASH = "888869df34302fd19661547e7f7836c1fcddfd36662af4ccca97ab62cd8b727a";
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function unlock() {
+  const pwd = document.getElementById('pwd').value;
+  if (!pwd) return;
+  const hash = await sha256(pwd);
+  if (hash === PASS_HASH) {
+    sessionStorage.setItem('mc_auth', hash);
+    showApp();
+  } else {
+    const err = document.getElementById('err');
+    err.style.display = 'block';
+    document.getElementById('pwd').value = '';
+    document.getElementById('pwd').focus();
+    setTimeout(()=>err.style.display='none', 3000);
+  }
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  const app = document.getElementById('app-screen');
+  app.style.display = 'block';
+  app.innerHTML = document.getElementById('app-template').innerHTML;
+  // Run the app scripts
+  app.querySelectorAll('script').forEach(s => {
+    const ns = document.createElement('script');
+    ns.textContent = s.textContent;
+    document.body.appendChild(ns);
+  });
+}
+
+// Check existing session
+(async () => {
+  const stored = sessionStorage.getItem('mc_auth');
+  if (stored && stored === PASS_HASH) showApp();
+})();
+</script>
+
+<!-- APP TEMPLATE — loaded only after correct password -->
+<template id="app-template">
+<style>
+:root {
+  --bg:#0e0f11;--surface:#16181c;--surface2:#1e2126;--border:#2a2d34;--border2:#383c45;
+  --text:#f0f0ee;--muted:#7a7f8a;--hint:#4a4f5a;
+  --accent:#c8f060;--accent2:#60d4f0;--warn:#f0b860;--danger:#f06060;--success:#60e0a0;
+  --font-d:'Syne',sans-serif;--font-m:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-m);min-height:100vh;line-height:1.6}
+.app{display:grid;grid-template-rows:auto 1fr;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:100}
+.logo{font-family:var(--font-d);font-weight:700;font-size:15px;letter-spacing:.02em;display:flex;align-items:center;gap:10px}
+.logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%}
+.fx-pill{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px}
+.fx-val{color:var(--accent);font-weight:500}
+.fx-dot{width:6px;height:6px;border-radius:50%;background:var(--hint)}
+.fx-dot.live{background:var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.main{display:grid;grid-template-columns:290px 1fr;height:calc(100vh - 56px);overflow:hidden}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:1.5rem 1rem;display:flex;flex-direction:column;gap:1.5rem}
+.content{overflow-y:auto;padding:1.5rem 2rem}
+.stitle{font-size:10px;letter-spacing:.12em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;font-family:var(--font-d)}
+.sheet-row{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.sheet-label{font-size:11px;color:var(--muted)}
+.sheet-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--font-m);font-size:11px;width:100%;transition:border-color .15s}
+.sheet-input:focus{outline:none;border-color:var(--accent2)}
+.sheet-input::placeholder{color:var(--hint)}
+.btn{background:transparent;border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:8px 14px;font-family:var(--font-m);font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;justify-content:center}
+.btn:hover{background:var(--surface2);border-color:var(--accent2)}
+.btn-accent{background:var(--accent);color:#0e0f11;border-color:var(--accent);font-weight:500}
+.btn-accent:hover{background:#d4f470;border-color:#d4f470;color:#0e0f11}
+.btn-sm{padding:5px 10px;font-size:11px}
+.thr-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.thr-hdr{display:flex;justify-content:space-between}
+.thr-label{font-size:11px;color:var(--muted)}
+.thr-val{font-size:12px;color:var(--accent);font-weight:500}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--border2);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer}
+.season-chips{display:flex;flex-wrap:wrap;gap:5px}
+.season-chip{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);color:var(--muted);cursor:pointer;transition:all .15s;font-family:var(--font-m)}
+.season-chip:hover{border-color:var(--accent2);color:var(--accent2)}
+.season-chip.active{background:var(--accent);color:#0e0f11;border-color:var(--accent)}
+.status-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;font-size:11px;margin-top:4px}
+.status-bar.loading{background:rgba(96,212,240,.08);color:var(--accent2);border:1px solid rgba(96,212,240,.2)}
+.status-bar.ok{background:rgba(96,224,160,.08);color:var(--success);border:1px solid rgba(96,224,160,.2)}
+.status-bar.error{background:rgba(240,96,96,.08);color:var(--danger);border:1px solid rgba(240,96,96,.2)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
+.page-title{font-family:var(--font-d);font-size:20px;font-weight:700}
+.page-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-d)}
+.kpi-value{font-size:22px;font-weight:500;font-family:var(--font-d)}
+.kpi-sub{font-size:11px;color:var(--hint);margin-top:3px}
+.green{color:var(--success)}.amber{color:var(--warn)}.red{color:var(--danger)}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.table-toolbar{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);gap:10px}
+.search-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text);font-family:var(--font-m);font-size:12px;width:220px}
+.search-input:focus{outline:none;border-color:var(--accent2)}
+.search-input::placeholder{color:var(--hint)}
+.filter-btns{display:flex;gap:5px}
+.filter-btn{font-size:11px;padding:5px 12px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font-m);transition:all .15s}
+.filter-btn:hover{color:var(--text);border-color:var(--border2)}
+.filter-btn.active{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:1px solid var(--border)}
+th{padding:10px 14px;font-size:10px;color:var(--hint);text-align:left;font-weight:500;letter-spacing:.08em;text-transform:uppercase;font-family:var(--font-d);white-space:nowrap}
+td{padding:12px 14px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .1s;cursor:pointer}
+tbody tr:hover{background:var(--surface2)}
+.sku-cell{display:flex;flex-direction:column;gap:2px}
+.sku-code{font-size:12px;color:var(--accent2)}
+.sku-name{font-size:11px;color:var(--muted)}
+.pack-badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(96,212,240,.12);color:var(--accent2);border:1px solid rgba(96,212,240,.2);margin-top:2px;font-family:var(--font-d);letter-spacing:.05em}
+.price-main{font-size:13px;font-weight:500;font-family:var(--font-d)}
+.price-prev{font-size:11px;color:var(--hint)}
+.price-delta{font-size:10px}
+.price-delta.up{color:var(--success)}.price-delta.down{color:var(--danger)}
+.margin-bar{display:flex;align-items:center;gap:8px}
+.bar-track{flex:1;height:4px;background:var(--border2);border-radius:2px;max-width:60px}
+.bar-fill{height:100%;border-radius:2px}
+.bar-green{background:var(--success)}.bar-amber{background:var(--warn)}.bar-red{background:var(--danger)}
+.cov-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border-radius:4px}
+.cov-ok{background:rgba(96,224,160,.1);color:var(--success)}
+.cov-warn{background:rgba(240,184,96,.1);color:var(--warn)}
+.cov-danger{background:rgba(240,96,96,.1);color:var(--danger)}
+.action-dot{width:8px;height:8px;border-radius:50%}
+.dot-green{background:var(--success)}.dot-amber{background:var(--warn)}.dot-red{background:var(--danger)}
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:1.5rem;overflow:hidden;display:none}
+.detail-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.detail-title{font-family:var(--font-d);font-size:16px;font-weight:600}
+.detail-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.detail-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.calc-step{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
+.calc-step:last-child{border-bottom:none;font-weight:500;font-size:14px}
+.calc-step-label{color:var(--muted)}
+.calc-step-val{font-family:var(--font-d)}
+.clv-accent{color:var(--accent)}.clv-accent2{color:var(--accent2)}.clv-success{color:var(--success)}.clv-warn{color:var(--warn)}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center;gap:12px}
+.empty-icon{font-size:32px;opacity:.3}
+.empty-title{font-family:var(--font-d);font-size:16px;color:var(--muted)}
+.empty-sub{font-size:12px;color:var(--hint);max-width:300px;line-height:1.6}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent2);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sep{height:1px;background:var(--border);margin:4px 0}
+.vel-badge{font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(200,240,96,.1);color:var(--accent);border:1px solid rgba(200,240,96,.2)}
+</style>
+
+<div class="app">
+<div class="topbar">
+  <div class="logo"><div class="logo-dot"></div>MyCOCOS · Motor de Pricing</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="fx-pill">
+      <div class="fx-dot" id="fxDot"></div>
+      <span style="color:var(--muted);font-size:11px">USD/CLP</span>
+      <span class="fx-val" id="fxVal">—</span>
+      <span style="color:var(--hint);font-size:10px" id="fxTime">cargando...</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted)" id="weekLabel"></div>
+    <button class="btn btn-sm" onclick="loadAll()"><span class="spinner" id="sp" style="display:none"></span>↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="main">
+<div class="sidebar">
+
+  <div>
+    <div class="stitle">Fuentes de datos</div>
+    <div class="sheet-row">
+      <div class="sheet-label">Sheet Ventas · ID</div>
+      <input class="sheet-input" id="sVentas" value="1ZmdN7AL4Qtfm9cmen632Z-UGoPJuQ1GpzxzMKMcmKTc" placeholder="Sheet ID ventas">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Pestaña</div>
+      <input class="sheet-input" id="tVentas" value="Ventas" placeholder="Nombre pestaña">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Sheet Stock · ID</div>
+      <input class="sheet-input" id="sStock" value="1YNcDyuHORqRgv8XFXr0-jZplFWnVximomIQupDeTdxs" placeholder="Sheet ID stock">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Pestaña</div>
+      <input class="sheet-input" id="tStock" value="Stock" placeholder="Nombre pestaña">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Sheet Maestro · ID</div>
+      <input class="sheet-input" id="sMaestro" value="17J4y-dPNuX2vswePSVTfaXyDtB1ekgOYGsoCkced_8M" placeholder="Sheet ID maestro">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Pestaña Maestro</div>
+      <input class="sheet-input" id="tMaestro" value="Maestro" placeholder="Nombre pestaña">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Sheet Velocidad · ID</div>
+      <input class="sheet-input" id="sVel" value="1jSV5npc1e9f6Xps-1yyE03JXRNfd8CsGoF1unlORI8w" placeholder="Sheet ID velocidad">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Pestaña Velocidad</div>
+      <input class="sheet-input" id="tVel" value="MyCOCOS CL" placeholder="Nombre pestaña">
+    </div>
+    <div class="sheet-row">
+      <div class="sheet-label">Pestaña Recetario Packs</div>
+      <input class="sheet-input" id="tRecetas" value="Recetas packs" placeholder="Nombre pestaña recetas">
+    </div>
+    <div id="sheetStatus" class="status-bar" style="display:none"></div>
+    <button class="btn btn-accent" style="width:100%;margin-top:10px" onclick="loadAll()">Conectar y cargar datos</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div>
+    <div class="stitle">Umbrales de ajuste</div>
+    <div class="thr-row">
+      <div class="thr-hdr"><div class="thr-label">Margen base objetivo</div><div class="thr-val" id="lbl-m">65%</div></div>
+      <input type="range" min="40" max="85" value="65" step="1" oninput="document.getElementById('lbl-m').textContent=this.value+'%';recalcAll()">
+    </div>
+    <div class="thr-row">
+      <div class="thr-hdr"><div class="thr-label">Días mínimos (stock bajo)</div><div class="thr-val" id="lbl-dn">20</div></div>
+      <input type="range" min="7" max="60" value="20" step="1" oninput="document.getElementById('lbl-dn').textContent=this.value;recalcAll()">
+    </div>
+    <div class="thr-row">
+      <div class="thr-hdr"><div class="thr-label">Días máximos (exceso)</div><div class="thr-val" id="lbl-dx">90</div></div>
+      <input type="range" min="30" max="180" value="90" step="5" oninput="document.getElementById('lbl-dx').textContent=this.value;recalcAll()">
+    </div>
+    <div class="thr-row">
+      <div class="thr-hdr"><div class="thr-label">Ajuste stock bajo (+)</div><div class="thr-val" id="lbl-ab">8%</div></div>
+      <input type="range" min="2" max="20" value="8" step="1" oninput="document.getElementById('lbl-ab').textContent=this.value+'%';recalcAll()">
+    </div>
+    <div class="thr-row">
+      <div class="thr-hdr"><div class="thr-label">Ajuste exceso stock (-)</div><div class="thr-val" id="lbl-ae">8%</div></div>
+      <input type="range" min="2" max="20" value="8" step="1" oninput="document.getElementById('lbl-ae').textContent=this.value+'%';recalcAll()">
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div>
+    <div class="stitle">Temporada activa · Chile</div>
+    <div class="season-chips">
+      <span class="season-chip" data-boost="0.05" onclick="toggleSeason(this)">CyberDay (may)</span>
+      <span class="season-chip" data-boost="0.04" onclick="toggleSeason(this)">Cyber Lunes</span>
+      <span class="season-chip" data-boost="0.06" onclick="toggleSeason(this)">Día del Padre</span>
+      <span class="season-chip" data-boost="0.07" onclick="toggleSeason(this)">Navidad</span>
+      <span class="season-chip" data-boost="0.05" onclick="toggleSeason(this)">18 Sept</span>
+      <span class="season-chip" data-boost="0.03" onclick="toggleSeason(this)">Hot Sale</span>
+      <span class="season-chip" data-boost="0.04" onclick="toggleSeason(this)">San Valentín</span>
+    </div>
+    <div style="font-size:11px;color:var(--hint);margin-top:8px" id="seasonInfo">Sin temporada activa. El multiplicador semanal del sheet se aplica automáticamente.</div>
+  </div>
+
+  <div class="sep"></div>
+  <div>
+    <div class="stitle">Demo sin conexión</div>
+    <button class="btn" style="width:100%;font-size:11px" onclick="loadDemo()">Cargar datos de ejemplo (MyCOCOS)</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Catálogo de precios · MyCOCOS Chile</div>
+      <div class="page-sub" id="lastUpdate">Sin datos — conectá tus sheets o cargá el demo.</div>
+    </div>
+    <button class="btn btn-sm" onclick="exportCSV()">↓ Exportar CSV</button>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">SKUs activos</div><div class="kpi-value" id="k-skus">—</div><div class="kpi-sub" id="k-skus-sub">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Margen promedio</div><div class="kpi-value" id="k-margen">—</div><div class="kpi-sub" id="k-margen-sub">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Alertas activas</div><div class="kpi-value" id="k-alertas">—</div><div class="kpi-sub" id="k-alertas-sub">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Semana actual</div><div class="kpi-value" id="k-semana" style="font-size:16px">—</div><div class="kpi-sub" id="k-semana-sub">multiplicador estacional</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-toolbar">
+      <input class="search-input" placeholder="Buscar SKU o producto..." oninput="filterTable()" id="searchInput">
+      <div class="filter-btns">
+        <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
+        <button class="filter-btn" onclick="setFilter('alertas',this)">Con alerta</button>
+        <button class="filter-btn" onclick="setFilter('bajo',this)">Stock bajo</button>
+        <button class="filter-btn" onclick="setFilter('exceso',this)">Exceso</button>
+        <button class="filter-btn" onclick="setFilter('packs',this)">Packs</button>
+      </div>
+    </div>
+    <div id="tableContainer">
+      <div class="empty-state">
+        <div class="empty-icon">⬡</div>
+        <div class="empty-title">Sin datos cargados</div>
+        <div class="empty-sub">Los IDs de tus sheets ya están pre-cargados. Asegurate que sean públicos (cualquiera con el link puede ver) y hacé clic en "Conectar y cargar datos".</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <div><div class="detail-title" id="dTitle">—</div><div class="detail-sub" id="dSub">—</div></div>
+      <button class="btn btn-sm" onclick="document.getElementById('detailPanel').style.display='none'">✕</button>
+    </div>
+    <div class="detail-body">
+      <div>
+        <div style="font-size:10px;color:var(--hint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;font-family:'Syne',sans-serif">Desglose del cálculo</div>
+        <div id="dSteps"></div>
+      </div>
+      <div id="dActions"></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────────
+let allProducts = [];
+let fxRate = 0;
+let seasonBoost = 0;
+let seasonLabel = '';
+let activeFilter = 'todos';
+let currentWeek = getWeekNumber(new Date());
+
+function getWeekNumber(d) {
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+}
+
+// ── FX ───────────────────────────────────────────────────
+async function fetchFX() {
+  try {
+    const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=CLP');
+    const d = await r.json();
+    fxRate = d.rates.CLP;
+    document.getElementById('fxVal').textContent = Math.round(fxRate).toLocaleString('es-CL');
+    document.getElementById('fxTime').textContent = 'en vivo';
+    document.getElementById('fxDot').classList.add('live');
+  } catch {
+    fxRate = 945;
+    document.getElementById('fxVal').textContent = '945 (est.)';
+    document.getElementById('fxTime').textContent = 'sin conexión';
+  }
+}
+
+// ── SHEETS ───────────────────────────────────────────────
+async function readSheet(id, tab) {
+  const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`No se pudo leer "${tab}" del sheet ${id.slice(0,8)}...`);
+  return parseCSV(await r.text());
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
+  return lines.slice(1).map(line => {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let c of line) {
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    vals.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').replace(/"/g,'').trim());
+    return obj;
+  });
+}
+
+function parseCLP(s) {
+  if (!s) return 0;
+  return parseFloat(s.replace(/[$.]/g,'').replace(',','.').replace(/\./g,'')) || 0;
+}
+
+// ── LOAD FROM SHEETS ─────────────────────────────────────
+async function loadAll() {
+  const sV=document.getElementById('sVentas').value.trim();
+  const sS=document.getElementById('sStock').value.trim();
+  const sM=document.getElementById('sMaestro').value.trim();
+  const sVel=document.getElementById('sVel').value.trim();
+  const tV=document.getElementById('tVentas').value.trim()||'Ventas';
+  const tS=document.getElementById('tStock').value.trim()||'Stock';
+  const tM=document.getElementById('tMaestro').value.trim()||'Maestro';
+  const tVl=document.getElementById('tVel').value.trim()||'MyCOCOS CL';
+  const tR=document.getElementById('tRecetas').value.trim()||'Recetas packs';
+
+  if (!sV||!sS||!sM) { showStatus('error','Completá los IDs de los sheets.'); return; }
+  showStatus('loading','Conectando con Google Sheets...');
+  toggleSpinner(true);
+
+  try {
+    await fetchFX();
+    const [ventas, stock, maestro, velocidad, recetas] = await Promise.all([
+      readSheet(sV,tV),
+      readSheet(sS,tS),
+      readSheet(sM,tM),
+      sVel ? readSheet(sVel,tVl).catch(()=>[]) : Promise.resolve([]),
+      sVel ? readSheet(sVel,tR).catch(()=>[]) : Promise.resolve([]),
+    ]);
+    allProducts = buildProducts(maestro, ventas, stock, velocidad, recetas);
+    recalcAll();
+    showStatus('ok',`${allProducts.length} SKUs cargados · FX ${Math.round(fxRate).toLocaleString('es-CL')} CLP/USD · Semana ${currentWeek}`);
+    document.getElementById('lastUpdate').textContent = `Actualizado ${new Date().toLocaleTimeString('es-CL')} · ${allProducts.length} SKUs`;
+  } catch(e) {
+    showStatus('error','Error: '+e.message+'. Verificá que los sheets sean públicos (ver → cualquiera con el link puede ver).');
+  }
+  toggleSpinner(false);
+}
+
+function buildProducts(maestro, ventas, stock, velocidad, recetas) {
+  // Stock map
+  const stockMap = {};
+  stock.forEach(r => {
+    const sku = (r.sku||r['código']||r['codigo']||Object.values(r)[0]||'').toUpperCase().trim();
+    const qty = parseFloat((r.stock||r['stock actual']||r['cantidad']||Object.values(r)[1]||'0').replace(/[.,]/g,'')) || 0;
+    if (sku) stockMap[sku] = qty;
+  });
+
+  // Ventas map (por SKU): precio promedio y unidades mes
+  const ventasMap = {};
+  ventas.forEach(r => {
+    const sku = (r.sku||r['código']||r['codigo']||Object.values(r)[1]||'').toUpperCase().trim();
+    const units = parseFloat(r.unidades||r['cantidad']||r['qty']||0);
+    const precio = parseCLP(r['precio unitario']||r.precio||r.price||'0');
+    const fecha = r.fecha||r.date||'';
+    if (!sku) return;
+    if (!ventasMap[sku]) ventasMap[sku] = { u:[], p:[], f:[] };
+    ventasMap[sku].u.push(units);
+    ventasMap[sku].p.push(precio);
+    ventasMap[sku].f.push(fecha);
+  });
+
+  // Velocidad map (vel inicial por SKU, + multiplicadores w1-w52)
+  const velMap = {};
+  velocidad.forEach(r => {
+    const sku = (r['sku cl']||r.sku||Object.values(r)[0]||'').toUpperCase().trim();
+    if (!sku || sku.startsWith('#')) return;
+    const velInicial = parseFloat((r['vel inicial (x)']||r['vel inicial']||'0').replace(',','.')) || 0;
+    const mults = {};
+    for (let w=1; w<=52; w++) {
+      const v = parseFloat((r[`w${w}`]||'1').replace(',','.'));
+      mults[w] = isNaN(v) ? 1 : v;
+    }
+    velMap[sku] = { velInicial, mults };
+  });
+
+  // Recetas map: SKU padre → [{comp, qty}]
+  const recetaMap = {};
+  recetas.forEach(r => {
+    const padre = (r['sku padre']||r['sku_pack']||Object.values(r)[1]||'').toUpperCase().trim();
+    const hijo = (r['sku hijo']||r['sku_componente']||Object.values(r)[2]||'').toUpperCase().trim();
+    const qty = parseFloat(r.qty||r.cantidad||1)||1;
+    if (!padre||!hijo||hijo.includes(' ')||hijo.length<8) return; // skip name rows
+    if (!recetaMap[padre]) recetaMap[padre] = [];
+    // avoid duplicate entries
+    if (!recetaMap[padre].find(x=>x.comp===hijo)) recetaMap[padre].push({comp:hijo,qty});
+  });
+
+  // Maestro: columnas: sku, producto, código ean / de barra, costo bruto, costo neto, precio de lista, % margen
+  const costMap = {};
+  const precioListaMap = {};
+  maestro.forEach(r => {
+    const sku = (r.sku||Object.values(r)[0]||'').toUpperCase().trim();
+    if (!sku||sku.length<4) return;
+    const cb = parseCLP(r['costo bruto']||r['costo']||'0');
+    const cn = parseCLP(r['costo neto']||'0');
+    const pl = parseCLP(r['precio de lista']||r['precio']||'0');
+    if (cb>0) costMap[sku] = { costoB:cb, costoN:cn||cb };
+    if (pl>0) precioListaMap[sku] = pl;
+  });
+
+  // Build unified products from maestro (primary) + velocity keys
+  const skuSet = new Set([...Object.keys(costMap), ...Object.keys(velMap)]);
+  const products = [];
+  skuSet.forEach(sku => {
+    if (!sku||sku.length<6) return;
+    const costo = costMap[sku];
+    if (!costo) return; // need cost to show
+    const vd = ventasMap[sku]||{u:[],p:[],f:[]};
+    const totalU = vd.u.reduce((a,b)=>a+b,0);
+    const meses = calcMeses(vd.f);
+    const ventasMes = meses>0 ? totalU/meses : 0;
+    const precioAnterior = vd.p.length>0 ? vd.p.reduce((a,b)=>a+b,0)/vd.p.length : (precioListaMap[sku]||0);
+    const vel = velMap[sku]||null;
+    const isPack = !!recetaMap[sku] || sku.includes('-2')||sku.includes('KIT')||sku.includes('PACK');
+    const nombre = maestro.find(r=>(r.sku||'').toUpperCase()===sku)?.producto || sku;
+    products.push({
+      sku, nombre: nombre.trim(),
+      costoB: costo.costoB, costoN: costo.costoN,
+      precioLista: precioListaMap[sku]||0,
+      isPack, tieneReceta: !!recetaMap[sku],
+      receta: recetaMap[sku]||[],
+      ventasMes, precioAnterior,
+      stockActual: stockMap[sku]||0,
+      vel
+    });
+  });
+  return products;
+}
+
+function calcMeses(fechas) {
+  try {
+    const dates = fechas.map(f=>new Date(f)).filter(d=>!isNaN(d));
+    if (dates.length<2) return 1;
+    const min=Math.min(...dates.map(d=>d.getTime()));
+    const max=Math.max(...dates.map(d=>d.getTime()));
+    return Math.max(1,Math.round((max-min)/(1000*60*60*24*30)));
+  } catch { return 12; }
+}
+
+// ── CALCULAR PRECIO ──────────────────────────────────────
+function getThresholds() {
+  const sl = document.querySelectorAll('input[type=range]');
+  return { margen:parseInt(sl[0].value)/100, dMin:parseInt(sl[1].value), dMax:parseInt(sl[2].value), aBajo:parseInt(sl[3].value)/100, aExceso:parseInt(sl[4].value)/100 };
+}
+
+function getSeasonalMult(vel) {
+  if (!vel||!vel.mults) return 1;
+  return vel.mults[currentWeek]||1;
+}
+
+function calcPrecio(p) {
+  const t = getThresholds();
+  const costoB = p.costoB;
+  if (!costoB||costoB<=0) return null;
+
+  // If pack with recipe but no cost, sum components
+  let costoEfectivo = costoB;
+  if (p.isPack && p.tieneReceta && costoB===0) {
+    costoEfectivo = p.receta.reduce((sum,r) => {
+      const comp = allProducts.find(x=>x.sku===r.comp);
+      return sum + (comp ? comp.costoB * r.qty : 0);
+    }, 0);
+    if (!costoEfectivo) costoEfectivo = costoB;
+  }
+
+  // Precio base con margen objetivo
+  const precioBase = costoEfectivo / (1 - t.margen);
+
+  // Velocidad de venta: usa vel inicial del sheet si disponible, si no usa ventas históricas
+  const velInicial = p.vel?.velInicial||0;
+  const ventasDia = (velInicial>0 ? velInicial/7 : p.ventasMes/30);
+  const cobertura = ventasDia>0 ? p.stockActual/ventasDia : 999;
+
+  // Ajuste por stock
+  let ajusteMult = 1, stockEstado = 'ok', ajusteLabel = 'Sin ajuste (stock normal)';
+  if (cobertura < t.dMin) {
+    ajusteMult = 1 + t.aBajo;
+    stockEstado = 'bajo';
+    ajusteLabel = `+${Math.round(t.aBajo*100)}% (stock bajo, ${Math.round(cobertura)} días)`;
+  } else if (cobertura > t.dMax) {
+    ajusteMult = 1 - t.aExceso;
+    stockEstado = 'exceso';
+    ajusteLabel = `-${Math.round(t.aExceso*100)}% (exceso stock, ${Math.round(cobertura)} días)`;
+  }
+
+  // Multiplicador estacional semanal del sheet
+  const seasonalMult = getSeasonalMult(p.vel);
+
+  const precioAjustado = precioBase * ajusteMult * seasonalMult;
+  const boostPromo = seasonBoost > 0 ? (1 + seasonBoost) : 1;
+  const precioFinal = Math.round(precioAjustado * boostPromo / 100) * 100;
+  const margenReal = ((precioFinal - costoEfectivo) / precioFinal) * 100;
+
+  // Comparar con precio de lista actual
+  const diffVsLista = p.precioLista > 0 ? ((precioFinal - p.precioLista) / p.precioLista * 100) : 0;
+
+  return { costoEfectivo, costoB, precioBase, precioFinal, margenReal, cobertura, stockEstado, ajusteLabel, ajusteMult, seasonalMult, diffVsLista, precioLista: p.precioLista };
+}
+
+// ── RENDER TABLE ─────────────────────────────────────────
+function recalcAll() {
+  const computed = allProducts.map(p=>({p,r:calcPrecio(p)})).filter(x=>x.r&&x.r.precioFinal>0);
+  if (!computed.length) return;
+
+  const avgM = computed.reduce((s,x)=>s+x.r.margenReal,0)/computed.length;
+  const alertas = computed.filter(x=>x.r.stockEstado!=='ok').length;
+  const bajo = computed.filter(x=>x.r.stockEstado==='bajo').length;
+  const exceso = computed.filter(x=>x.r.stockEstado==='exceso').length;
+  const packs = computed.filter(x=>x.p.isPack).length;
+
+  document.getElementById('k-skus').textContent = computed.length;
+  document.getElementById('k-skus-sub').textContent = `${packs} packs · ${computed.length-packs} individuales`;
+  const km = document.getElementById('k-margen');
+  km.textContent = avgM.toFixed(1)+'%';
+  km.className = 'kpi-value '+(avgM>=65?'green':avgM>=55?'amber':'red');
+  document.getElementById('k-margen-sub').textContent = avgM>=65?'objetivo cumplido ✓':'revisar SKUs';
+  const ka = document.getElementById('k-alertas');
+  ka.textContent = alertas;
+  ka.className = 'kpi-value '+(alertas===0?'green':alertas<5?'amber':'red');
+  document.getElementById('k-alertas-sub').textContent = `${bajo} bajo · ${exceso} exceso`;
+  document.getElementById('k-semana').textContent = `Semana ${currentWeek}`;
+  document.getElementById('k-semana-sub').textContent = `multiplicador estacional activo`;
+  document.getElementById('weekLabel').textContent = `S${currentWeek}/${new Date().getFullYear()}`;
+
+  renderTable(computed);
+}
+
+function renderTable(computed) {
+  const search = (document.getElementById('searchInput').value||'').toLowerCase();
+  let fil = computed;
+  if (activeFilter==='alertas') fil = computed.filter(x=>x.r.stockEstado!=='ok');
+  if (activeFilter==='bajo') fil = computed.filter(x=>x.r.stockEstado==='bajo');
+  if (activeFilter==='exceso') fil = computed.filter(x=>x.r.stockEstado==='exceso');
+  if (activeFilter==='packs') fil = computed.filter(x=>x.p.isPack);
+  if (search) fil = fil.filter(x=>x.p.sku.toLowerCase().includes(search)||x.p.nombre.toLowerCase().includes(search));
+
+  if (!fil.length) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">⬡</div><div class="empty-title">Sin resultados</div><div class="empty-sub">Probá otro filtro o búsqueda.</div></div>`;
+    return;
+  }
+
+  let html = `<table><thead><tr>
+    <th>SKU / Producto</th><th>Costo (CLP)</th><th>Precio lista actual</th><th>Precio sugerido</th><th>Margen</th><th>Cobertura</th><th>Vel. estacional</th><th>Estado</th>
+  </tr></thead><tbody>`;
+
+  fil.forEach(({p,r}) => {
+    const deltaNum = r.diffVsLista;
+    const deltaStr = r.precioLista>0 ? `<div class="price-delta ${deltaNum>=0?'up':'down'}">${deltaNum>=0?'↑':'↓'} ${Math.abs(deltaNum).toFixed(1)}% vs lista</div>` : '';
+    const mW = Math.min(100,Math.max(0,r.margenReal));
+    const barClass = r.margenReal>=65?'bar-green':r.margenReal>=55?'bar-amber':'bar-red';
+    const cobClass = r.stockEstado==='ok'?'cov-ok':r.stockEstado==='bajo'?'cov-danger':'cov-warn';
+    const cobLabel = r.stockEstado==='ok'?'✓ normal':r.stockEstado==='bajo'?'⚡ bajo':'↑ exceso';
+    const dotClass = r.stockEstado==='ok'?'dot-green':r.stockEstado==='bajo'?'dot-red':'dot-amber';
+    const actionLabel = r.stockEstado==='ok'?'precio estable':r.stockEstado==='bajo'?'subir precio':'revisar promo';
+    const velLabel = r.seasonalMult!==1 ? `${r.seasonalMult.toFixed(1)}×` : '1.0×';
+    const velClass = r.seasonalMult>1.5?'var(--warn)':r.seasonalMult>1?'var(--accent)':'var(--hint)';
+
+    html += `<tr onclick="showDetail('${p.sku}')">
+      <td><div class="sku-cell">
+        <div class="sku-code">${p.sku}</div>
+        <div class="sku-name">${p.nombre.length>40?p.nombre.slice(0,38)+'…':p.nombre}</div>
+        ${p.isPack?'<span class="pack-badge">PACK</span>':''}
+      </div></td>
+      <td><div class="price-main">$${fmt(r.costoEfectivo)}</div></td>
+      <td><div class="price-prev">${r.precioLista>0?'$'+fmt(r.precioLista):'—'}</div></td>
+      <td><div class="price-main">$${fmt(r.precioFinal)}</div>${deltaStr}</td>
+      <td><div class="margin-bar">
+        <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${mW}%"></div></div>
+        <span style="font-size:12px">${r.margenReal.toFixed(1)}%</span>
+      </div></td>
+      <td><span class="cov-badge ${cobClass}">${Math.round(r.cobertura)} días · ${cobLabel}</span></td>
+      <td><span style="font-size:12px;color:${velClass};font-weight:500">${velLabel}</span></td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div class="action-dot ${dotClass}"></div><span style="font-size:11px;color:var(--muted)">${actionLabel}</span></div></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
+function showDetail(sku) {
+  const item = allProducts.find(p=>p.sku===sku);
+  if (!item) return;
+  const r = calcPrecio(item);
+  if (!r) return;
+
+  document.getElementById('dTitle').textContent = item.nombre;
+  document.getElementById('dSub').textContent = `${item.sku} · ${item.isPack?'Pack':'Producto'} · Semana ${currentWeek} · Vel. estacional ${r.seasonalMult.toFixed(2)}×`;
+
+  const boostStr = seasonBoost>0?`+${Math.round(seasonBoost*100)}% — ${seasonLabel}`:'Sin boost promocional activo';
+  const costoOrigen = item.tieneReceta?`Calculado de ${item.receta.length} componentes (recetario)`:'Costo directo del maestro';
+
+  let steps = `
+    <div class="calc-step"><span class="calc-step-label">Costo bruto (maestro CL)</span><span class="calc-step-val">$${fmt(item.costoB)}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Origen del costo</span><span class="calc-step-val clv-accent2">${costoOrigen}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Precio base (margen ${Math.round(getThresholds().margen*100)}%)</span><span class="calc-step-val">$${fmt(r.precioBase)}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Ajuste por stock/cobertura</span><span class="calc-step-val ${r.stockEstado==='ok'?'clv-accent2':r.stockEstado==='bajo'?'clv-success':'clv-warn'}">${r.ajusteLabel}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Multiplicador estacional (W${currentWeek})</span><span class="calc-step-val clv-accent">${r.seasonalMult.toFixed(2)}× ${r.seasonalMult>1?'↑ temporada alta':r.seasonalMult<1?'↓ temporada baja':'normal'}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Boost promocional manual</span><span class="calc-step-val">${boostStr}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Precio de lista actual</span><span class="calc-step-val">${r.precioLista>0?'$'+fmt(r.precioLista):'Sin precio de lista'}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Cobertura de stock</span><span class="calc-step-val">${Math.round(r.cobertura)} días · ${Math.round(item.ventasMes||0)} uds/mes hist.</span></div>`;
+  if (r.precioLista>0) {
+    const diff = r.diffVsLista.toFixed(1);
+    steps += `<div class="calc-step"><span class="calc-step-label">Diferencia vs precio de lista</span><span class="calc-step-val ${parseFloat(diff)>=0?'clv-success':'clv-warn'}">${diff>=0?'+':''}${diff}%</span></div>`;
+  }
+  steps += `<div class="calc-step"><span class="calc-step-label">Precio final sugerido</span><span class="calc-step-val clv-success">$${fmt(r.precioFinal)}</span></div>`;
+  document.getElementById('dSteps').innerHTML = steps;
+
+  let actions = `<div style="font-size:10px;color:var(--hint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;font-family:'Syne',sans-serif">Análisis y acciones</div>`;
+  if (r.stockEstado==='exceso') actions += `<div style="padding:10px;background:rgba(240,184,96,.08);border:1px solid rgba(240,184,96,.2);border-radius:6px;font-size:12px;color:var(--warn);margin-bottom:8px">⚠ Exceso de stock (${Math.round(r.cobertura)} días). Considerá una promoción temporal, bundle o descuento por volumen para acelerar rotación.</div>`;
+  if (r.stockEstado==='bajo') actions += `<div style="padding:10px;background:rgba(240,96,96,.08);border:1px solid rgba(240,96,96,.2);border-radius:6px;font-size:12px;color:var(--danger);margin-bottom:8px">⚡ Stock crítico (${Math.round(r.cobertura)} días). Precio elevado para proteger margen hasta reponer inventario.</div>`;
+  if (r.seasonalMult>1.5) actions += `<div style="padding:10px;background:rgba(240,184,96,.08);border:1px solid rgba(240,184,96,.2);border-radius:6px;font-size:12px;color:var(--warn);margin-bottom:8px">🔥 Alta demanda estacional (${r.seasonalMult.toFixed(1)}× esta semana). Precio ya ajustado al alza automáticamente.</div>`;
+  if (item.isPack && item.tieneReceta) actions += `<div style="padding:10px;background:rgba(96,212,240,.08);border:1px solid rgba(96,212,240,.2);border-radius:6px;font-size:12px;color:var(--accent2);margin-bottom:8px">Pack por recetario: ${item.receta.map(c=>`${c.qty}× ${c.comp}`).join(' + ')}</div>`;
+  if (r.margenReal<55) actions += `<div style="padding:10px;background:rgba(240,96,96,.08);border:1px solid rgba(240,96,96,.2);border-radius:6px;font-size:12px;color:var(--danger);margin-bottom:8px">⚠ Margen bajo (${r.margenReal.toFixed(1)}%). Revisá el costo o ajustá el precio de lista.</div>`;
+
+  document.getElementById('dActions').innerHTML = actions;
+  document.getElementById('detailPanel').style.display = 'block';
+  document.getElementById('detailPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── SEASON ───────────────────────────────────────────────
+function toggleSeason(el) {
+  const was = el.classList.contains('active');
+  document.querySelectorAll('.season-chip').forEach(c=>c.classList.remove('active'));
+  if (!was) {
+    el.classList.add('active');
+    seasonBoost = parseFloat(el.dataset.boost);
+    seasonLabel = el.textContent;
+    document.getElementById('seasonInfo').textContent = `Temporada activa: ${seasonLabel} (boost +${Math.round(seasonBoost*100)}% sobre precio ajustado)`;
+    document.getElementById('seasonInfo').style.color = 'var(--accent2)';
+  } else {
+    seasonBoost = 0; seasonLabel = '';
+    document.getElementById('seasonInfo').textContent = 'Sin temporada activa. El multiplicador semanal del sheet se aplica automáticamente.';
+    document.getElementById('seasonInfo').style.color = 'var(--hint)';
+  }
+  recalcAll();
+}
+
+// ── FILTERS ───────────────────────────────────────────────
+function filterTable() { recalcAll(); }
+function setFilter(f,btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  recalcAll();
+}
+
+// ── EXPORT ───────────────────────────────────────────────
+function exportCSV() {
+  if (!allProducts.length) return;
+  const rows = [['SKU','Nombre','Tipo','Costo Bruto CLP','Costo Neto CLP','Precio Lista Actual','Precio Sugerido','Margen %','Cobertura Días','Estado Stock','Vel Estacional','Diferencia vs Lista %']];
+  allProducts.forEach(p => {
+    const r = calcPrecio(p);
+    if (!r||!r.precioFinal) return;
+    rows.push([p.sku,p.nombre,p.isPack?'Pack':'Individual',Math.round(p.costoB),Math.round(p.costoN||0),Math.round(r.precioLista)||0,Math.round(r.precioFinal),r.margenReal.toFixed(1),Math.round(r.cobertura),r.stockEstado,r.seasonalMult.toFixed(2),r.diffVsLista.toFixed(1)]);
+  });
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = `mycocos_pricing_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── DEMO ─────────────────────────────────────────────────
+function loadDemo() {
+  fxRate = 945;
+  document.getElementById('fxVal').textContent = '945';
+  document.getElementById('fxTime').textContent = 'demo';
+  document.getElementById('fxDot').classList.add('live');
+
+  // Datos reales del maestro que leímos
+  const w = currentWeek;
+  const mkMults = () => {
+    const m={};
+    for(let i=1;i<=52;i++) m[i]=i>=47&&i<=52?4:i>=22&&i<=23?3:i===40?3:i>=48&&i<=50?2.5:1;
+    return m;
+  };
+
+  allProducts = [
+    {sku:'MC-33011-NE-1004',nombre:'RASURADORA MyCOCOS® 4.0 BLACK',costoB:13699,costoN:11512,precioLista:59000,isPack:false,tieneReceta:false,receta:[],ventasMes:546/4.3,precioAnterior:59000,stockActual:420,vel:{velInicial:546,mults:mkMults()}},
+    {sku:'MC-33011-AZ-1004',nombre:'RASURADORA MyCOCOS® 4.0 BLUE',costoB:13699,costoN:11512,precioLista:59000,isPack:false,tieneReceta:false,receta:[],ventasMes:359/4.3,precioAnterior:59000,stockActual:180,vel:{velInicial:359,mults:mkMults()}},
+    {sku:'MC-33021-AZ-1001',nombre:'RASURADORA DE NARIZ Y OREJAS - MyCOCOS',costoB:6729,costoN:5655,precioLista:33990,isPack:false,tieneReceta:false,receta:[],ventasMes:347/4.3,precioAnterior:33990,stockActual:95,vel:{velInicial:347,mults:mkMults()}},
+    {sku:'MC-33051-AZ-1001',nombre:'Safety Razor Afeitadora Mycocos',costoB:8923,costoN:7498,precioLista:33990,isPack:false,tieneReceta:false,receta:[],ventasMes:223/4.3,precioAnterior:33990,stockActual:40,vel:{velInicial:223,mults:mkMults()}},
+    {sku:'MC-33081-AZ-1001',nombre:'Rasuradora Facial DAILY SHAVER',costoB:10767,costoN:9048,precioLista:49990,isPack:false,tieneReceta:false,receta:[],ventasMes:286/4.3,precioAnterior:49990,stockActual:310,vel:{velInicial:286,mults:mkMults()}},
+    {sku:'MC-33131-NE-1002',nombre:'HOJILLAS SKINSECURE 4.0 Negra',costoB:3050,costoN:2563,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:155/4.3,precioAnterior:17990,stockActual:850,vel:{velInicial:155,mults:mkMults()}},
+    {sku:'MC-33131-AZ-1002',nombre:'HOJILLAS SKINSECURE 4.0 Azul',costoB:3050,costoN:2563,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:110/4.3,precioAnterior:17990,stockActual:720,vel:{velInicial:110,mults:mkMults()}},
+    {sku:'MC-33321-SC-5651',nombre:'BÁLSAMO AFTER SHAVE 50ML',costoB:3035,costoN:2550,precioLista:14990,isPack:false,tieneReceta:false,receta:[],ventasMes:100/4.3,precioAnterior:14990,stockActual:12,vel:{velInicial:100,mults:mkMults()}},
+    {sku:'MC-33341-SC-1651',nombre:'ESPUMA PARA AFEITAR 150ML',costoB:2752,costoN:2313,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:74/4.3,precioAnterior:17990,stockActual:290,vel:{velInicial:74,mults:mkMults()}},
+    {sku:'MC-33371-SC-1001',nombre:'Desodorante de Cocos 60ML',costoB:4596,costoN:3862,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:53/4.3,precioAnterior:17990,stockActual:6,vel:{velInicial:53,mults:mkMults()}},
+    {sku:'MC-22211-CA-1001',nombre:'TRAVEL BAG MyCOCOS 1.0',costoB:7461,costoN:6270,precioLista:27990,isPack:false,tieneReceta:false,receta:[],ventasMes:89/4.3,precioAnterior:27990,stockActual:55,vel:{velInicial:89,mults:mkMults()}},
+    {sku:'MC-33253-AZ-1004',nombre:'KIT DE CORTAUÑAS 4.0 BLUE',costoB:5608,costoN:4713,precioLista:19990,isPack:false,tieneReceta:false,receta:[],ventasMes:104/4.3,precioAnterior:19990,stockActual:180,vel:{velInicial:104,mults:mkMults()}},
+    {sku:'MC-33441-SC-1002',nombre:'Toallitas Húmedas Everyday Wipe 30und',costoB:914,costoN:768,precioLista:6990,isPack:false,tieneReceta:false,receta:[],ventasMes:295/4.3,precioAnterior:6990,stockActual:2200,vel:{velInicial:295,mults:mkMults()}},
+    {sku:'MC-33863-NE-1002',nombre:'KIT PERFECT TRIO MyCOCOS® NEGRO (4.0)',costoB:29351,costoN:24665,precioLista:95990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-NE-1004',qty:1},{comp:'MC-33051-AZ-1001',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioAnterior:95990,stockActual:38,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33863-AZ-1002',nombre:'KIT PERFECT TRIO MyCOCOS® AZUL (4.0)',costoB:29351,costoN:24665,precioLista:95990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-AZ-1004',qty:1},{comp:'MC-33051-AZ-1001',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioAnterior:95990,stockActual:22,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33823-NE-1002',nombre:'Kit PRIME + Rasuradora nasal (Negro 4.0)',costoB:20428,costoN:17166,precioLista:79990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-NE-1004',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioAnterior:79990,stockActual:65,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33512-NE-1003',nombre:'THE CRACK PACKS Travel Café/MCC Negra (4.0)',costoB:95701,costoN:80421,precioLista:139900,isPack:true,tieneReceta:false,receta:[],ventasMes:0,precioAnterior:139900,stockActual:120,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33171-SC-1001',nombre:'HOJILLA REPUESTO SAFETY RAZOR X5',costoB:445,costoN:374,precioLista:4990,isPack:false,tieneReceta:false,receta:[],ventasMes:171/4.3,precioAnterior:4990,stockActual:1800,vel:{velInicial:171,mults:mkMults()}},
+  ];
+
+  recalcAll();
+  document.getElementById('lastUpdate').textContent = `Demo activo · ${allProducts.length} SKUs · Costos reales del maestro · FX: 945 CLP/USD`;
+  showStatus('ok',`Demo con datos reales de MyCOCOS CL · ${allProducts.length} SKUs · Semana ${currentWeek} activa`);
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function fmt(n) { return Math.round(n).toLocaleString('es-CL'); }
+function showStatus(type,msg) {
+  const el = document.getElementById('sheetStatus');
+  el.className='status-bar '+type;
+  el.style.display='flex';
+  el.innerHTML=`<div class="status-dot"></div><span>${msg}</span>`;
+}
+function toggleSpinner(s) { document.getElementById('sp').style.display=s?'inline-block':'none'; }
+
+// ── INIT ──────────────────────────────────────────────────
+document.getElementById('weekLabel').textContent = `S${currentWeek}/${new Date().getFullYear()}`;
+fetchFX();
+</script>
+</template>
+
+</body>
+</html>
