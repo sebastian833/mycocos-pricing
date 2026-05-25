@@ -362,24 +362,16 @@ async function fetchFX() {
 }
 
 // ── SHEETS ───────────────────────────────────────────────
+const SCRIPT_PROXY = 'https://script.google.com/macros/s/AKfycbzD_Pd368uImZ8_8POriJMO5bcMWwKlNUtcE33eyLul2MB4h8dSM_G8RkbpGw_PZE8_/exec';
+
 async function readSheet(id, tab) {
-  const direct = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
-  const proxies = [
-    direct,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`,
-    `https://corsproxy.io/?${direct}`,
-  ];
-  for (const url of proxies) {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const text = await r.text();
-      if (text.includes('<!DOCTYPE') || text.includes('<html')) continue;
-      if (text.trim() === '') continue;
-      return parseCSV(text);
-    } catch { continue; }
-  }
-  throw new Error(`No se pudo leer "${tab}". Verificá que el sheet esté compartido como "Cualquiera con el enlace puede ver".`);
+  const url = `${SCRIPT_PROXY}?id=${id}&tab=${encodeURIComponent(tab)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`No se pudo leer "${tab}"`);
+  const text = await r.text();
+  if (text.startsWith('ERROR:')) throw new Error(text);
+  if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error(`Sheet "${tab}" no accesible`);
+  return parseCSV(text);
 }
 
 function parseCSV(text) {
