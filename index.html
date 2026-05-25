@@ -3,97 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Motor de Pricing — MyCOCOS</title>
+<title>MyCOCOS · Pricing</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-/* LOGIN */
-#login-screen{position:fixed;inset:0;background:#0e0f11;display:flex;align-items:center;justify-content:center;z-index:9999}
-.login-card{background:#16181c;border:1px solid #2a2d34;border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:380px;display:flex;flex-direction:column;gap:1.5rem}
-.login-logo{display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:#f0f0ee}
-.login-dot{width:10px;height:10px;background:#c8f060;border-radius:50%}
-.login-sub{font-size:12px;color:#7a7f8a;margin-top:4px;font-family:'DM Mono',monospace}
-.login-field{display:flex;flex-direction:column;gap:6px}
-.login-field label{font-size:11px;color:#7a7f8a;letter-spacing:.05em;font-family:'DM Mono',monospace}
-.login-field input{background:#1e2126;border:1px solid #2a2d34;border-radius:8px;padding:12px 14px;color:#f0f0ee;font-family:'DM Mono',monospace;font-size:14px;outline:none;transition:border-color .15s;width:100%}
-.login-field input:focus{border-color:#60d4f0}
-.login-field input::placeholder{color:#4a4f5a}
-.login-btn{background:#c8f060;color:#0e0f11;border:none;border-radius:8px;padding:12px;font-family:'DM Mono',monospace;font-size:14px;font-weight:500;cursor:pointer;width:100%;transition:background .15s}
-.login-btn:hover{background:#d4f470}
-.login-error{background:rgba(240,96,96,.1);border:1px solid rgba(240,96,96,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#f06060;display:none;font-family:'DM Mono',monospace}
-.login-hint{font-size:11px;color:#4a4f5a;text-align:center;font-family:'DM Mono',monospace}
-/* APP */
-#app-screen{display:none}
-</style>
-</head>
-<body>
-
-<!-- LOGIN -->
-<div id="login-screen">
-  <div class="login-card">
-    <div>
-      <div class="login-logo"><div class="login-dot"></div>MyCOCOS · Pricing</div>
-      <div class="login-sub">Motor de pricing dinámico — acceso interno</div>
-    </div>
-    <div class="login-field">
-      <label>CONTRASEÑA DE ACCESO</label>
-      <input type="password" id="pwd" placeholder="Ingresá la contraseña..." onkeydown="if(event.key==='Enter')unlock()">
-    </div>
-    <div class="login-error" id="err">Contraseña incorrecta. Intentá de nuevo.</div>
-    <button class="login-btn" onclick="unlock()">Ingresar →</button>
-    <div class="login-hint">Uso exclusivo equipo MyCOCOS · Todos los cálculos corren en el navegador</div>
-  </div>
-</div>
-
-<!-- APP (hidden until login) -->
-<div id="app-screen"></div>
-
-<script>
-// SHA-256 de "mycocos2025"
-const PASS_HASH = "888869df34302fd19661547e7f7836c1fcddfd36662af4ccca97ab62cd8b727a";
-
-async function sha256(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-async function unlock() {
-  const pwd = document.getElementById('pwd').value;
-  if (!pwd) return;
-  const hash = await sha256(pwd);
-  if (hash === PASS_HASH) {
-    sessionStorage.setItem('mc_auth', hash);
-    showApp();
-  } else {
-    const err = document.getElementById('err');
-    err.style.display = 'block';
-    document.getElementById('pwd').value = '';
-    document.getElementById('pwd').focus();
-    setTimeout(()=>err.style.display='none', 3000);
-  }
-}
-
-function showApp() {
-  document.getElementById('login-screen').style.display = 'none';
-  const app = document.getElementById('app-screen');
-  app.style.display = 'block';
-  app.innerHTML = document.getElementById('app-template').innerHTML;
-  // Run the app scripts
-  app.querySelectorAll('script').forEach(s => {
-    const ns = document.createElement('script');
-    ns.textContent = s.textContent;
-    document.body.appendChild(ns);
-  });
-}
-
-// Check existing session
-(async () => {
-  const stored = sessionStorage.getItem('mc_auth');
-  if (stored && stored === PASS_HASH) showApp();
-})();
-</script>
-
-<!-- APP TEMPLATE — loaded only after correct password -->
-<template id="app-template">
 <style>
 :root {
   --bg:#0e0f11;--surface:#16181c;--surface2:#1e2126;--border:#2a2d34;--border2:#383c45;
@@ -104,7 +15,24 @@ function showApp() {
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:14px}
 body{background:var(--bg);color:var(--text);font-family:var(--font-m);min-height:100vh;line-height:1.6}
-.app{display:grid;grid-template-rows:auto 1fr;min-height:100vh}
+
+/* ── LOGIN ── */
+#loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:2.5rem 2rem;width:100%;max-width:360px;display:flex;flex-direction:column;gap:1.25rem}
+.login-logo{display:flex;align-items:center;gap:10px;font-family:var(--font-d);font-size:18px;font-weight:700}
+.login-dot{width:10px;height:10px;background:var(--accent);border-radius:50%}
+.login-sub{font-size:12px;color:var(--muted)}
+.login-label{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;font-family:var(--font-d)}
+.login-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:var(--font-m);font-size:13px;width:100%;transition:border-color .15s}
+.login-input:focus{outline:none;border-color:var(--accent2)}
+.login-btn{background:var(--accent);color:#0e0f11;border:none;border-radius:6px;padding:11px;font-family:var(--font-m);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
+.login-btn:hover{background:#d4f470}
+.login-err{font-size:12px;color:var(--danger);display:none;text-align:center}
+.login-footer{font-size:11px;color:var(--hint);text-align:center}
+
+/* ── APP ── */
+#app{display:none}
+.app-inner{display:grid;grid-template-rows:auto 1fr;min-height:100vh}
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:100}
 .logo{font-family:var(--font-d);font-weight:700;font-size:15px;letter-spacing:.02em;display:flex;align-items:center;gap:10px}
 .logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%}
@@ -202,10 +130,28 @@ tbody tr:hover{background:var(--surface2)}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent2);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .sep{height:1px;background:var(--border);margin:4px 0}
-.vel-badge{font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(200,240,96,.1);color:var(--accent);border:1px solid rgba(200,240,96,.2)}
 </style>
+</head>
+<body>
 
-<div class="app">
+<!-- ── LOGIN ── -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo"><div class="login-dot"></div>MyCOCOS · Pricing</div>
+    <div class="login-sub">Motor de pricing dinámico — acceso interno</div>
+    <div>
+      <div class="login-label">Contraseña de acceso</div>
+      <input class="login-input" id="pwInput" type="password" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Ingresar →</button>
+    <div class="login-err" id="loginErr">Contraseña incorrecta</div>
+    <div class="login-footer">Uso exclusivo equipo MyCOCOS · Todos los cálculos corren en el navegador</div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+<div class="app-inner">
 <div class="topbar">
   <div class="logo"><div class="logo-dot"></div>MyCOCOS · Motor de Pricing</div>
   <div style="display:flex;align-items:center;gap:12px">
@@ -222,44 +168,43 @@ tbody tr:hover{background:var(--surface2)}
 
 <div class="main">
 <div class="sidebar">
-
   <div>
     <div class="stitle">Fuentes de datos</div>
     <div class="sheet-row">
       <div class="sheet-label">Sheet Ventas · ID</div>
-      <input class="sheet-input" id="sVentas" value="1ZmdN7AL4Qtfm9cmen632Z-UGoPJuQ1GpzxzMKMcmKTc" placeholder="Sheet ID ventas">
+      <input class="sheet-input" id="sVentas" value="1ZmdN7AL4Qtfm9cmen632Z-UGoPJuQ1GpzxzMKMcmKTc">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Pestaña</div>
-      <input class="sheet-input" id="tVentas" value="Ventas" placeholder="Nombre pestaña">
+      <input class="sheet-input" id="tVentas" value="Ventas my 2025">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Sheet Stock · ID</div>
-      <input class="sheet-input" id="sStock" value="1YNcDyuHORqRgv8XFXr0-jZplFWnVximomIQupDeTdxs" placeholder="Sheet ID stock">
+      <input class="sheet-input" id="sStock" value="1YNcDyuHORqRgv8XFXr0-jZplFWnVximomIQupDeTdxs">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Pestaña</div>
-      <input class="sheet-input" id="tStock" value="Stock" placeholder="Nombre pestaña">
+      <input class="sheet-input" id="tStock" value="STOCK CONSOLIDADO BSALE( SHOPY + ECOMPANY)">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Sheet Maestro · ID</div>
-      <input class="sheet-input" id="sMaestro" value="17J4y-dPNuX2vswePSVTfaXyDtB1ekgOYGsoCkced_8M" placeholder="Sheet ID maestro">
+      <input class="sheet-input" id="sMaestro" value="17J4y-dPNuX2vswePSVTfaXyDtB1ekgOYGsoCkced_8M">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Pestaña Maestro</div>
-      <input class="sheet-input" id="tMaestro" value="Maestro" placeholder="Nombre pestaña">
+      <input class="sheet-input" id="tMaestro" value="MyCOCOS">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Sheet Velocidad · ID</div>
-      <input class="sheet-input" id="sVel" value="1jSV5npc1e9f6Xps-1yyE03JXRNfd8CsGoF1unlORI8w" placeholder="Sheet ID velocidad">
+      <input class="sheet-input" id="sVel" value="1jSV5npc1e9f6Xps-1yyE03JXRNfd8CsGoF1unlORI8w">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Pestaña Velocidad</div>
-      <input class="sheet-input" id="tVel" value="MyCOCOS CL" placeholder="Nombre pestaña">
+      <input class="sheet-input" id="tVel" value="Speed sales SHOPY">
     </div>
     <div class="sheet-row">
       <div class="sheet-label">Pestaña Recetario Packs</div>
-      <input class="sheet-input" id="tRecetas" value="Recetas packs" placeholder="Nombre pestaña recetas">
+      <input class="sheet-input" id="tRecetas" value="Copia de Recetas">
     </div>
     <div id="sheetStatus" class="status-bar" style="display:none"></div>
     <button class="btn btn-accent" style="width:100%;margin-top:10px" onclick="loadAll()">Conectar y cargar datos</button>
@@ -366,8 +311,27 @@ tbody tr:hover{background:var(--surface2)}
 </div>
 </div>
 </div>
+</div>
 
 <script>
+// ── AUTH ─────────────────────────────────────────────────
+const PW_HASH = '888869df34302fd19661547e7f7836c1fcddfd36662af4ccca97ab62cd8b727a';
+
+async function doLogin() {
+  const pw = document.getElementById('pwInput').value;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  if (hash === PW_HASH) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    fetchFX();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
 // ── STATE ────────────────────────────────────────────────
 let allProducts = [];
 let fxRate = 0;
@@ -407,7 +371,14 @@ async function readSheet(id, tab) {
 
 function parseCSV(text) {
   const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
+  const rawH = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
+  // Deduplicate blank/repeated headers so positional columns don't overwrite each other
+  const cnt = {};
+  const headers = rawH.map(h => {
+    const k = h || '__col';
+    cnt[k] = (cnt[k]||0) + 1;
+    return cnt[k] === 1 ? k : `${k}_${cnt[k]}`;
+  });
   return lines.slice(1).map(line => {
     const vals = [];
     let cur = '', inQ = false;
@@ -440,22 +411,24 @@ async function loadAll() {
   const tVl=document.getElementById('tVel').value.trim()||'MyCOCOS CL';
   const tR=document.getElementById('tRecetas').value.trim()||'Recetas packs';
 
-  if (!sV||!sS||!sM) { showStatus('error','Completá los IDs de los sheets.'); return; }
+  if (!sS||!sM) { showStatus('error','Completá los IDs de Stock y Maestro.'); return; }
   showStatus('loading','Conectando con Google Sheets...');
   toggleSpinner(true);
 
   try {
     await fetchFX();
-    const [ventas, stock, maestro, velocidad, recetas] = await Promise.all([
-      readSheet(sV,tV),
+    // Ventas can be very large — load in parallel but don't fail if it times out
+    const [stock, maestro, velocidad, recetas, ventas] = await Promise.all([
       readSheet(sS,tS),
       readSheet(sM,tM),
       sVel ? readSheet(sVel,tVl).catch(()=>[]) : Promise.resolve([]),
       sVel ? readSheet(sVel,tR).catch(()=>[]) : Promise.resolve([]),
+      sV ? readSheet(sV,tV).catch(()=>[]) : Promise.resolve([]),
     ]);
     allProducts = buildProducts(maestro, ventas, stock, velocidad, recetas);
     recalcAll();
-    showStatus('ok',`${allProducts.length} SKUs cargados · FX ${Math.round(fxRate).toLocaleString('es-CL')} CLP/USD · Semana ${currentWeek}`);
+    const ventasNote = ventas.length===0 ? ' · ventas no disponibles' : '';
+    showStatus('ok',`${allProducts.length} SKUs cargados · FX ${Math.round(fxRate).toLocaleString('es-CL')} CLP/USD · Semana ${currentWeek}${ventasNote}`);
     document.getElementById('lastUpdate').textContent = `Actualizado ${new Date().toLocaleTimeString('es-CL')} · ${allProducts.length} SKUs`;
   } catch(e) {
     showStatus('error','Error: '+e.message+'. Verificá que los sheets sean públicos (ver → cualquiera con el link puede ver).');
@@ -464,15 +437,18 @@ async function loadAll() {
 }
 
 function buildProducts(maestro, ventas, stock, velocidad, recetas) {
-  // Stock map
   const stockMap = {};
   stock.forEach(r => {
-    const sku = (r.sku||r['código']||r['codigo']||Object.values(r)[0]||'').toUpperCase().trim();
-    const qty = parseFloat((r.stock||r['stock actual']||r['cantidad']||Object.values(r)[1]||'0').replace(/[.,]/g,'')) || 0;
-    if (sku) stockMap[sku] = qty;
+    // Filter: only Shopylibre = MyCOCOS Chile
+    const empresa = (r.empresa||'').toLowerCase();
+    if (empresa && empresa !== 'shopylibre') return;
+    const sku = (r.sku||r['código']||r['codigo']||'').toUpperCase().trim();
+    // STOCK BOT sheet: headers are blank for numeric cols.
+    // After dedup: __col=VariantID, __col_2=Qty, __col_3=Reserved, __col_4=Available, __col_5=CostoNeto
+    const qty = parseFloat((r['__col_4']||r.available||r.stock||r['stock actual']||r['cantidad']||'0').replace(/[.,]/g,'')) || 0;
+    if (sku) stockMap[sku] = (stockMap[sku]||0) + qty;
   });
 
-  // Ventas map (por SKU): precio promedio y unidades mes
   const ventasMap = {};
   ventas.forEach(r => {
     const sku = (r.sku||r['código']||r['codigo']||Object.values(r)[1]||'').toUpperCase().trim();
@@ -486,7 +462,6 @@ function buildProducts(maestro, ventas, stock, velocidad, recetas) {
     ventasMap[sku].f.push(fecha);
   });
 
-  // Velocidad map (vel inicial por SKU, + multiplicadores w1-w52)
   const velMap = {};
   velocidad.forEach(r => {
     const sku = (r['sku cl']||r.sku||Object.values(r)[0]||'').toUpperCase().trim();
@@ -500,38 +475,38 @@ function buildProducts(maestro, ventas, stock, velocidad, recetas) {
     velMap[sku] = { velInicial, mults };
   });
 
-  // Recetas map: SKU padre → [{comp, qty}]
   const recetaMap = {};
   recetas.forEach(r => {
     const padre = (r['sku padre']||r['sku_pack']||Object.values(r)[1]||'').toUpperCase().trim();
     const hijo = (r['sku hijo']||r['sku_componente']||Object.values(r)[2]||'').toUpperCase().trim();
     const qty = parseFloat(r.qty||r.cantidad||1)||1;
-    if (!padre||!hijo||hijo.includes(' ')||hijo.length<8) return; // skip name rows
+    if (!padre||!hijo||hijo.includes(' ')||hijo.length<8) return;
     if (!recetaMap[padre]) recetaMap[padre] = [];
-    // avoid duplicate entries
     if (!recetaMap[padre].find(x=>x.comp===hijo)) recetaMap[padre].push({comp:hijo,qty});
   });
 
-  // Maestro: columnas: sku, producto, código ean / de barra, costo bruto, costo neto, precio de lista, % margen
   const costMap = {};
   const precioListaMap = {};
+  const nombreMap = {};
   maestro.forEach(r => {
-    const sku = (r.sku||Object.values(r)[0]||'').toUpperCase().trim();
+    const sku = (r.sku||'').toUpperCase().trim();
     if (!sku||sku.length<4) return;
-    const cb = parseCLP(r['costo bruto']||r['costo']||'0');
-    const cn = parseCLP(r['costo neto']||'0');
-    const pl = parseCLP(r['precio de lista']||r['precio']||'0');
+    // Maestro MyCOCOS sheet: cost/price columns have blank headers.
+    // After dedup: __col=blank, __col_2=Código Barra, __col_3=Costo Bruto, __col_4=Costo Neto, __col_5=PVP
+    const cb = parseCLP(r['costo bruto']||r['__col_3']||r['costo']||'0');
+    const cn = parseCLP(r['costo neto']||r['__col_4']||'0');
+    const pl = parseCLP(r.pvp||r['__col_5']||r['precio de lista']||r['precio']||'0');
+    if (r.producto) nombreMap[sku] = r.producto;
     if (cb>0) costMap[sku] = { costoB:cb, costoN:cn||cb };
     if (pl>0) precioListaMap[sku] = pl;
   });
 
-  // Build unified products from maestro (primary) + velocity keys
   const skuSet = new Set([...Object.keys(costMap), ...Object.keys(velMap)]);
   const products = [];
   skuSet.forEach(sku => {
     if (!sku||sku.length<6) return;
     const costo = costMap[sku];
-    if (!costo) return; // need cost to show
+    if (!costo) return;
     const vd = ventasMap[sku]||{u:[],p:[],f:[]};
     const totalU = vd.u.reduce((a,b)=>a+b,0);
     const meses = calcMeses(vd.f);
@@ -539,7 +514,7 @@ function buildProducts(maestro, ventas, stock, velocidad, recetas) {
     const precioAnterior = vd.p.length>0 ? vd.p.reduce((a,b)=>a+b,0)/vd.p.length : (precioListaMap[sku]||0);
     const vel = velMap[sku]||null;
     const isPack = !!recetaMap[sku] || sku.includes('-2')||sku.includes('KIT')||sku.includes('PACK');
-    const nombre = maestro.find(r=>(r.sku||'').toUpperCase()===sku)?.producto || sku;
+    const nombre = nombreMap[sku] || sku;
     products.push({
       sku, nombre: nombre.trim(),
       costoB: costo.costoB, costoN: costo.costoN,
@@ -580,7 +555,6 @@ function calcPrecio(p) {
   const costoB = p.costoB;
   if (!costoB||costoB<=0) return null;
 
-  // If pack with recipe but no cost, sum components
   let costoEfectivo = costoB;
   if (p.isPack && p.tieneReceta && costoB===0) {
     costoEfectivo = p.receta.reduce((sum,r) => {
@@ -590,15 +564,11 @@ function calcPrecio(p) {
     if (!costoEfectivo) costoEfectivo = costoB;
   }
 
-  // Precio base con margen objetivo
   const precioBase = costoEfectivo / (1 - t.margen);
-
-  // Velocidad de venta: usa vel inicial del sheet si disponible, si no usa ventas históricas
   const velInicial = p.vel?.velInicial||0;
   const ventasDia = (velInicial>0 ? velInicial/7 : p.ventasMes/30);
   const cobertura = ventasDia>0 ? p.stockActual/ventasDia : 999;
 
-  // Ajuste por stock
   let ajusteMult = 1, stockEstado = 'ok', ajusteLabel = 'Sin ajuste (stock normal)';
   if (cobertura < t.dMin) {
     ajusteMult = 1 + t.aBajo;
@@ -610,21 +580,17 @@ function calcPrecio(p) {
     ajusteLabel = `-${Math.round(t.aExceso*100)}% (exceso stock, ${Math.round(cobertura)} días)`;
   }
 
-  // Multiplicador estacional semanal del sheet
   const seasonalMult = getSeasonalMult(p.vel);
-
   const precioAjustado = precioBase * ajusteMult * seasonalMult;
   const boostPromo = seasonBoost > 0 ? (1 + seasonBoost) : 1;
   const precioFinal = Math.round(precioAjustado * boostPromo / 100) * 100;
   const margenReal = ((precioFinal - costoEfectivo) / precioFinal) * 100;
-
-  // Comparar con precio de lista actual
   const diffVsLista = p.precioLista > 0 ? ((precioFinal - p.precioLista) / p.precioLista * 100) : 0;
 
   return { costoEfectivo, costoB, precioBase, precioFinal, margenReal, cobertura, stockEstado, ajusteLabel, ajusteMult, seasonalMult, diffVsLista, precioLista: p.precioLista };
 }
 
-// ── RENDER TABLE ─────────────────────────────────────────
+// ── RENDER ───────────────────────────────────────────────
 function recalcAll() {
   const computed = allProducts.map(p=>({p,r:calcPrecio(p)})).filter(x=>x.r&&x.r.precioFinal>0);
   if (!computed.length) return;
@@ -646,7 +612,6 @@ function recalcAll() {
   ka.className = 'kpi-value '+(alertas===0?'green':alertas<5?'amber':'red');
   document.getElementById('k-alertas-sub').textContent = `${bajo} bajo · ${exceso} exceso`;
   document.getElementById('k-semana').textContent = `Semana ${currentWeek}`;
-  document.getElementById('k-semana-sub').textContent = `multiplicador estacional activo`;
   document.getElementById('weekLabel').textContent = `S${currentWeek}/${new Date().getFullYear()}`;
 
   renderTable(computed);
@@ -735,7 +700,7 @@ function showDetail(sku) {
   let actions = `<div style="font-size:10px;color:var(--hint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;font-family:'Syne',sans-serif">Análisis y acciones</div>`;
   if (r.stockEstado==='exceso') actions += `<div style="padding:10px;background:rgba(240,184,96,.08);border:1px solid rgba(240,184,96,.2);border-radius:6px;font-size:12px;color:var(--warn);margin-bottom:8px">⚠ Exceso de stock (${Math.round(r.cobertura)} días). Considerá una promoción temporal, bundle o descuento por volumen para acelerar rotación.</div>`;
   if (r.stockEstado==='bajo') actions += `<div style="padding:10px;background:rgba(240,96,96,.08);border:1px solid rgba(240,96,96,.2);border-radius:6px;font-size:12px;color:var(--danger);margin-bottom:8px">⚡ Stock crítico (${Math.round(r.cobertura)} días). Precio elevado para proteger margen hasta reponer inventario.</div>`;
-  if (r.seasonalMult>1.5) actions += `<div style="padding:10px;background:rgba(240,184,96,.08);border:1px solid rgba(240,184,96,.2);border-radius:6px;font-size:12px;color:var(--warn);margin-bottom:8px">🔥 Alta demanda estacional (${r.seasonalMult.toFixed(1)}× esta semana). Precio ya ajustado al alza automáticamente.</div>`;
+  if (r.seasonalMult>1.5) actions += `<div style="padding:10px;background:rgba(240,184,96,.08);border:1px solid rgba(240,184,96,.2);border-radius:6px;font-size:12px;color:var(--warn);margin-bottom:8px">Alta demanda estacional (${r.seasonalMult.toFixed(1)}× esta semana). Precio ya ajustado al alza automáticamente.</div>`;
   if (item.isPack && item.tieneReceta) actions += `<div style="padding:10px;background:rgba(96,212,240,.08);border:1px solid rgba(96,212,240,.2);border-radius:6px;font-size:12px;color:var(--accent2);margin-bottom:8px">Pack por recetario: ${item.receta.map(c=>`${c.qty}× ${c.comp}`).join(' + ')}</div>`;
   if (r.margenReal<55) actions += `<div style="padding:10px;background:rgba(240,96,96,.08);border:1px solid rgba(240,96,96,.2);border-radius:6px;font-size:12px;color:var(--danger);margin-bottom:8px">⚠ Margen bajo (${r.margenReal.toFixed(1)}%). Revisá el costo o ajustá el precio de lista.</div>`;
 
@@ -762,7 +727,7 @@ function toggleSeason(el) {
   recalcAll();
 }
 
-// ── FILTERS ───────────────────────────────────────────────
+// ── FILTERS ──────────────────────────────────────────────
 function filterTable() { recalcAll(); }
 function setFilter(f,btn) {
   activeFilter = f;
@@ -794,8 +759,6 @@ function loadDemo() {
   document.getElementById('fxTime').textContent = 'demo';
   document.getElementById('fxDot').classList.add('live');
 
-  // Datos reales del maestro que leímos
-  const w = currentWeek;
   const mkMults = () => {
     const m={};
     for(let i=1;i<=52;i++) m[i]=i>=47&&i<=52?4:i>=22&&i<=23?3:i===40?3:i>=48&&i<=50?2.5:1;
@@ -838,11 +801,7 @@ function showStatus(type,msg) {
 }
 function toggleSpinner(s) { document.getElementById('sp').style.display=s?'inline-block':'none'; }
 
-// ── INIT ──────────────────────────────────────────────────
 document.getElementById('weekLabel').textContent = `S${currentWeek}/${new Date().getFullYear()}`;
-fetchFX();
 </script>
-</template>
-
 </body>
 </html>
