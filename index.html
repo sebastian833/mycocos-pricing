@@ -364,23 +364,22 @@ async function fetchFX() {
 // ── SHEETS ───────────────────────────────────────────────
 async function readSheet(id, tab) {
   const direct = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
-  // Try direct first; fall back to CORS proxy if browser blocks it
-  let text;
-  try {
-    const r = await fetch(direct);
-    if (!r.ok) throw new Error('direct fail');
-    text = await r.text();
-    if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error('got html');
-  } catch {
-    const proxy = `https://corsproxy.io/?${encodeURIComponent(direct)}`;
-    const r2 = await fetch(proxy);
-    if (!r2.ok) throw new Error(`No se pudo leer "${tab}" (${id.slice(0,8)})`);
-    text = await r2.text();
+  const proxies = [
+    direct,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`,
+    `https://corsproxy.io/?${direct}`,
+  ];
+  for (const url of proxies) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const text = await r.text();
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) continue;
+      if (text.trim() === '') continue;
+      return parseCSV(text);
+    } catch { continue; }
   }
-  if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-    throw new Error(`Sheet "${tab}" no es accesible. Verificá que esté compartido como "Cualquiera con el enlace".`);
-  }
-  return parseCSV(text);
+  throw new Error(`No se pudo leer "${tab}". Verificá que el sheet esté compartido como "Cualquiera con el enlace puede ver".`);
 }
 
 function parseCSV(text) {
