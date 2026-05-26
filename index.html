@@ -458,12 +458,13 @@ function buildProducts(maestro, ventas, stock, velocidad, recetas) {
   ventas.forEach(r => {
     const sku = (r.sku||r['código']||r['codigo']||Object.values(r)[1]||'').toUpperCase().trim();
     const units = parseFloat(r.unidades||r['cantidad']||r['qty']||0);
-    const precio = parseCLP(r['precio unitario']||r.precio||r.price||'0');
+    // Column I (index 8) = Precio Unitario en Ventas my 2025
+    const precio = parseCLP(r['precio unitario']||r['precio unit']||r.precio||r.price||Object.values(r)[8]||'0');
     const fecha = r.fecha||r.date||'';
     if (!sku) return;
     if (!ventasMap[sku]) ventasMap[sku] = { u:[], p:[], f:[] };
     ventasMap[sku].u.push(units);
-    ventasMap[sku].p.push(precio);
+    if (precio > 100) ventasMap[sku].p.push(precio);
     ventasMap[sku].f.push(fecha);
   });
 
@@ -516,7 +517,7 @@ function buildProducts(maestro, ventas, stock, velocidad, recetas) {
     const totalU = vd.u.reduce((a,b)=>a+b,0);
     const meses = calcMeses(vd.f);
     const ventasMes = meses>0 ? totalU/meses : 0;
-    const precioAnterior = vd.p.length>0 ? vd.p.reduce((a,b)=>a+b,0)/vd.p.length : (precioListaMap[sku]||0);
+    const precioHistorico = vd.p.length>0 ? Math.round(vd.p.reduce((a,b)=>a+b,0)/vd.p.length) : 0;
     const vel = velMap[sku]||null;
     const isPack = !!recetaMap[sku] || sku.includes('-2')||sku.includes('KIT')||sku.includes('PACK');
     const nombre = nombreMap[sku] || sku;
@@ -526,7 +527,7 @@ function buildProducts(maestro, ventas, stock, velocidad, recetas) {
       precioLista: precioListaMap[sku]||0,
       isPack, tieneReceta: !!recetaMap[sku],
       receta: recetaMap[sku]||[],
-      ventasMes, precioAnterior,
+      ventasMes, precioHistorico,
       stockActual: stockMap[sku]||0,
       vel
     });
@@ -591,8 +592,9 @@ function calcPrecio(p) {
   const precioFinal = Math.round(precioAjustado * boostPromo / 100) * 100;
   const margenReal = ((precioFinal - costoEfectivo) / precioFinal) * 100;
   const diffVsLista = p.precioLista > 0 ? ((precioFinal - p.precioLista) / p.precioLista * 100) : 0;
+  const diffVsHistorico = p.precioHistorico > 0 ? ((precioFinal - p.precioHistorico) / p.precioHistorico * 100) : null;
 
-  return { costoEfectivo, costoB, precioBase, precioFinal, margenReal, cobertura, stockEstado, ajusteLabel, ajusteMult, seasonalMult, diffVsLista, precioLista: p.precioLista };
+  return { costoEfectivo, costoB, precioBase, precioFinal, margenReal, cobertura, stockEstado, ajusteLabel, ajusteMult, seasonalMult, diffVsLista, precioLista: p.precioLista, precioHistorico: p.precioHistorico, diffVsHistorico };
 }
 
 // ── RENDER ───────────────────────────────────────────────
@@ -637,18 +639,20 @@ function renderTable(computed) {
   }
 
   let html = `<table><thead><tr>
-    <th>SKU / Producto</th><th>Costo (CLP)</th><th>Precio lista actual</th><th>Precio sugerido</th><th>Margen</th><th>Cobertura</th><th>Vel. estacional</th><th>Estado</th>
+    <th>SKU / Producto</th><th>Costo (CLP)</th><th>Precio lista</th><th>Precio hist. '25</th><th>Precio sugerido</th><th>Margen</th><th>Cobertura</th><th>Vel.</th><th>Estado</th>
   </tr></thead><tbody>`;
 
   fil.forEach(({p,r}) => {
-    const deltaNum = r.diffVsLista;
-    const deltaStr = r.precioLista>0 ? `<div class="price-delta ${deltaNum>=0?'up':'down'}">${deltaNum>=0?'↑':'↓'} ${Math.abs(deltaNum).toFixed(1)}% vs lista</div>` : '';
+    const deltaVsLista = r.precioLista>0 ? `<div class="price-delta ${r.diffVsLista>=0?'up':'down'}">${r.diffVsLista>=0?'↑':'↓'} ${Math.abs(r.diffVsLista).toFixed(1)}% vs lista</div>` : '';
+    const histCell = r.precioHistorico>0
+      ? `<div class="price-prev">$${fmt(r.precioHistorico)}</div>${r.diffVsHistorico!==null?`<div class="price-delta ${r.diffVsHistorico>=0?'up':'down'}">${r.diffVsHistorico>=0?'↑':'↓'} ${Math.abs(r.diffVsHistorico).toFixed(1)}%</div>`:''}`
+      : `<div class="price-prev" style="color:var(--hint)">—</div>`;
     const mW = Math.min(100,Math.max(0,r.margenReal));
     const barClass = r.margenReal>=65?'bar-green':r.margenReal>=55?'bar-amber':'bar-red';
     const cobClass = r.stockEstado==='ok'?'cov-ok':r.stockEstado==='bajo'?'cov-danger':'cov-warn';
-    const cobLabel = r.stockEstado==='ok'?'✓ normal':r.stockEstado==='bajo'?'⚡ bajo':'↑ exceso';
+    const cobLabel = r.stockEstado==='ok'?'✓ ok':r.stockEstado==='bajo'?'⚡ bajo':'↑ exc.';
     const dotClass = r.stockEstado==='ok'?'dot-green':r.stockEstado==='bajo'?'dot-red':'dot-amber';
-    const actionLabel = r.stockEstado==='ok'?'precio estable':r.stockEstado==='bajo'?'subir precio':'revisar promo';
+    const actionLabel = r.stockEstado==='ok'?'estable':r.stockEstado==='bajo'?'subir':'promo';
     const velLabel = r.seasonalMult!==1 ? `${r.seasonalMult.toFixed(1)}×` : '1.0×';
     const velClass = r.seasonalMult>1.5?'var(--warn)':r.seasonalMult>1?'var(--accent)':'var(--hint)';
 
@@ -659,13 +663,14 @@ function renderTable(computed) {
         ${p.isPack?'<span class="pack-badge">PACK</span>':''}
       </div></td>
       <td><div class="price-main">$${fmt(r.costoEfectivo)}</div></td>
-      <td><div class="price-prev">${r.precioLista>0?'$'+fmt(r.precioLista):'—'}</div></td>
-      <td><div class="price-main">$${fmt(r.precioFinal)}</div>${deltaStr}</td>
+      <td><div class="price-prev">${r.precioLista>0?'$'+fmt(r.precioLista):'—'}</div>${deltaVsLista}</td>
+      <td>${histCell}</td>
+      <td><div class="price-main">$${fmt(r.precioFinal)}</div></td>
       <td><div class="margin-bar">
         <div class="bar-track"><div class="bar-fill ${barClass}" style="width:${mW}%"></div></div>
         <span style="font-size:12px">${r.margenReal.toFixed(1)}%</span>
       </div></td>
-      <td><span class="cov-badge ${cobClass}">${Math.round(r.cobertura)} días · ${cobLabel}</span></td>
+      <td><span class="cov-badge ${cobClass}">${Math.round(r.cobertura)}d · ${cobLabel}</span></td>
       <td><span style="font-size:12px;color:${velClass};font-weight:500">${velLabel}</span></td>
       <td><div style="display:flex;align-items:center;gap:6px"><div class="action-dot ${dotClass}"></div><span style="font-size:11px;color:var(--muted)">${actionLabel}</span></div></td>
     </tr>`;
@@ -693,11 +698,16 @@ function showDetail(sku) {
     <div class="calc-step"><span class="calc-step-label">Ajuste por stock/cobertura</span><span class="calc-step-val ${r.stockEstado==='ok'?'clv-accent2':r.stockEstado==='bajo'?'clv-success':'clv-warn'}">${r.ajusteLabel}</span></div>
     <div class="calc-step"><span class="calc-step-label">Multiplicador estacional (W${currentWeek})</span><span class="calc-step-val clv-accent">${r.seasonalMult.toFixed(2)}× ${r.seasonalMult>1?'↑ temporada alta':r.seasonalMult<1?'↓ temporada baja':'normal'}</span></div>
     <div class="calc-step"><span class="calc-step-label">Boost promocional manual</span><span class="calc-step-val">${boostStr}</span></div>
-    <div class="calc-step"><span class="calc-step-label">Precio de lista actual</span><span class="calc-step-val">${r.precioLista>0?'$'+fmt(r.precioLista):'Sin precio de lista'}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Precio de lista (maestro)</span><span class="calc-step-val">${r.precioLista>0?'$'+fmt(r.precioLista):'Sin precio de lista'}</span></div>
+    <div class="calc-step"><span class="calc-step-label">Precio histórico promedio ('25)</span><span class="calc-step-val ${r.precioHistorico>0?'clv-accent2':'clv-hint'}">${r.precioHistorico>0?'$'+fmt(r.precioHistorico):'Sin ventas registradas'}</span></div>
     <div class="calc-step"><span class="calc-step-label">Cobertura de stock</span><span class="calc-step-val">${Math.round(r.cobertura)} días · ${Math.round(item.ventasMes||0)} uds/mes hist.</span></div>`;
   if (r.precioLista>0) {
     const diff = r.diffVsLista.toFixed(1);
-    steps += `<div class="calc-step"><span class="calc-step-label">Diferencia vs precio de lista</span><span class="calc-step-val ${parseFloat(diff)>=0?'clv-success':'clv-warn'}">${diff>=0?'+':''}${diff}%</span></div>`;
+    steps += `<div class="calc-step"><span class="calc-step-label">Dif. vs precio de lista</span><span class="calc-step-val ${parseFloat(diff)>=0?'clv-success':'clv-warn'}">${parseFloat(diff)>=0?'+':''}${diff}%</span></div>`;
+  }
+  if (r.diffVsHistorico !== null) {
+    const diffH = r.diffVsHistorico.toFixed(1);
+    steps += `<div class="calc-step"><span class="calc-step-label">Dif. vs precio hist. '25</span><span class="calc-step-val ${parseFloat(diffH)>=0?'clv-success':'clv-warn'}">${parseFloat(diffH)>=0?'+':''}${diffH}%</span></div>`;
   }
   steps += `<div class="calc-step"><span class="calc-step-label">Precio final sugerido</span><span class="calc-step-val clv-success">$${fmt(r.precioFinal)}</span></div>`;
   document.getElementById('dSteps').innerHTML = steps;
@@ -744,11 +754,11 @@ function setFilter(f,btn) {
 // ── EXPORT ───────────────────────────────────────────────
 function exportCSV() {
   if (!allProducts.length) return;
-  const rows = [['SKU','Nombre','Tipo','Costo Bruto CLP','Costo Neto CLP','Precio Lista Actual','Precio Sugerido','Margen %','Cobertura Días','Estado Stock','Vel Estacional','Diferencia vs Lista %']];
+  const rows = [['SKU','Nombre','Tipo','Costo Bruto CLP','Costo Neto CLP','Precio Lista Actual','Precio Historico 2025','Precio Sugerido','Margen %','Cobertura Días','Estado Stock','Vel Estacional','Dif vs Lista %','Dif vs Hist %']];
   allProducts.forEach(p => {
     const r = calcPrecio(p);
     if (!r||!r.precioFinal) return;
-    rows.push([p.sku,p.nombre,p.isPack?'Pack':'Individual',Math.round(p.costoB),Math.round(p.costoN||0),Math.round(r.precioLista)||0,Math.round(r.precioFinal),r.margenReal.toFixed(1),Math.round(r.cobertura),r.stockEstado,r.seasonalMult.toFixed(2),r.diffVsLista.toFixed(1)]);
+    rows.push([p.sku,p.nombre,p.isPack?'Pack':'Individual',Math.round(p.costoB),Math.round(p.costoN||0),Math.round(r.precioLista)||0,Math.round(r.precioHistorico)||0,Math.round(r.precioFinal),r.margenReal.toFixed(1),Math.round(r.cobertura),r.stockEstado,r.seasonalMult.toFixed(2),r.diffVsLista.toFixed(1),(r.diffVsHistorico!==null?r.diffVsHistorico.toFixed(1):'')]);
   });
   const csv = rows.map(r=>r.join(',')).join('\n');
   const a = document.createElement('a');
@@ -771,24 +781,24 @@ function loadDemo() {
   };
 
   allProducts = [
-    {sku:'MC-33011-NE-1004',nombre:'RASURADORA MyCOCOS® 4.0 BLACK',costoB:13699,costoN:11512,precioLista:59000,isPack:false,tieneReceta:false,receta:[],ventasMes:546/4.3,precioAnterior:59000,stockActual:420,vel:{velInicial:546,mults:mkMults()}},
-    {sku:'MC-33011-AZ-1004',nombre:'RASURADORA MyCOCOS® 4.0 BLUE',costoB:13699,costoN:11512,precioLista:59000,isPack:false,tieneReceta:false,receta:[],ventasMes:359/4.3,precioAnterior:59000,stockActual:180,vel:{velInicial:359,mults:mkMults()}},
-    {sku:'MC-33021-AZ-1001',nombre:'RASURADORA DE NARIZ Y OREJAS - MyCOCOS',costoB:6729,costoN:5655,precioLista:33990,isPack:false,tieneReceta:false,receta:[],ventasMes:347/4.3,precioAnterior:33990,stockActual:95,vel:{velInicial:347,mults:mkMults()}},
-    {sku:'MC-33051-AZ-1001',nombre:'Safety Razor Afeitadora Mycocos',costoB:8923,costoN:7498,precioLista:33990,isPack:false,tieneReceta:false,receta:[],ventasMes:223/4.3,precioAnterior:33990,stockActual:40,vel:{velInicial:223,mults:mkMults()}},
-    {sku:'MC-33081-AZ-1001',nombre:'Rasuradora Facial DAILY SHAVER',costoB:10767,costoN:9048,precioLista:49990,isPack:false,tieneReceta:false,receta:[],ventasMes:286/4.3,precioAnterior:49990,stockActual:310,vel:{velInicial:286,mults:mkMults()}},
-    {sku:'MC-33131-NE-1002',nombre:'HOJILLAS SKINSECURE 4.0 Negra',costoB:3050,costoN:2563,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:155/4.3,precioAnterior:17990,stockActual:850,vel:{velInicial:155,mults:mkMults()}},
-    {sku:'MC-33131-AZ-1002',nombre:'HOJILLAS SKINSECURE 4.0 Azul',costoB:3050,costoN:2563,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:110/4.3,precioAnterior:17990,stockActual:720,vel:{velInicial:110,mults:mkMults()}},
-    {sku:'MC-33321-SC-5651',nombre:'BÁLSAMO AFTER SHAVE 50ML',costoB:3035,costoN:2550,precioLista:14990,isPack:false,tieneReceta:false,receta:[],ventasMes:100/4.3,precioAnterior:14990,stockActual:12,vel:{velInicial:100,mults:mkMults()}},
-    {sku:'MC-33341-SC-1651',nombre:'ESPUMA PARA AFEITAR 150ML',costoB:2752,costoN:2313,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:74/4.3,precioAnterior:17990,stockActual:290,vel:{velInicial:74,mults:mkMults()}},
-    {sku:'MC-33371-SC-1001',nombre:'Desodorante de Cocos 60ML',costoB:4596,costoN:3862,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:53/4.3,precioAnterior:17990,stockActual:6,vel:{velInicial:53,mults:mkMults()}},
-    {sku:'MC-22211-CA-1001',nombre:'TRAVEL BAG MyCOCOS 1.0',costoB:7461,costoN:6270,precioLista:27990,isPack:false,tieneReceta:false,receta:[],ventasMes:89/4.3,precioAnterior:27990,stockActual:55,vel:{velInicial:89,mults:mkMults()}},
-    {sku:'MC-33253-AZ-1004',nombre:'KIT DE CORTAUÑAS 4.0 BLUE',costoB:5608,costoN:4713,precioLista:19990,isPack:false,tieneReceta:false,receta:[],ventasMes:104/4.3,precioAnterior:19990,stockActual:180,vel:{velInicial:104,mults:mkMults()}},
-    {sku:'MC-33441-SC-1002',nombre:'Toallitas Húmedas Everyday Wipe 30und',costoB:914,costoN:768,precioLista:6990,isPack:false,tieneReceta:false,receta:[],ventasMes:295/4.3,precioAnterior:6990,stockActual:2200,vel:{velInicial:295,mults:mkMults()}},
-    {sku:'MC-33863-NE-1002',nombre:'KIT PERFECT TRIO MyCOCOS® NEGRO (4.0)',costoB:29351,costoN:24665,precioLista:95990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-NE-1004',qty:1},{comp:'MC-33051-AZ-1001',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioAnterior:95990,stockActual:38,vel:{velInicial:0,mults:mkMults()}},
-    {sku:'MC-33863-AZ-1002',nombre:'KIT PERFECT TRIO MyCOCOS® AZUL (4.0)',costoB:29351,costoN:24665,precioLista:95990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-AZ-1004',qty:1},{comp:'MC-33051-AZ-1001',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioAnterior:95990,stockActual:22,vel:{velInicial:0,mults:mkMults()}},
-    {sku:'MC-33823-NE-1002',nombre:'Kit PRIME + Rasuradora nasal (Negro 4.0)',costoB:20428,costoN:17166,precioLista:79990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-NE-1004',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioAnterior:79990,stockActual:65,vel:{velInicial:0,mults:mkMults()}},
-    {sku:'MC-33512-NE-1003',nombre:'THE CRACK PACKS Travel Café/MCC Negra (4.0)',costoB:95701,costoN:80421,precioLista:139900,isPack:true,tieneReceta:false,receta:[],ventasMes:0,precioAnterior:139900,stockActual:120,vel:{velInicial:0,mults:mkMults()}},
-    {sku:'MC-33171-SC-1001',nombre:'HOJILLA REPUESTO SAFETY RAZOR X5',costoB:445,costoN:374,precioLista:4990,isPack:false,tieneReceta:false,receta:[],ventasMes:171/4.3,precioAnterior:4990,stockActual:1800,vel:{velInicial:171,mults:mkMults()}},
+    {sku:'MC-33011-NE-1004',nombre:'RASURADORA MyCOCOS® 4.0 BLACK',costoB:13699,costoN:11512,precioLista:59000,isPack:false,tieneReceta:false,receta:[],ventasMes:546/4.3,precioHistorico:59000,stockActual:420,vel:{velInicial:546,mults:mkMults()}},
+    {sku:'MC-33011-AZ-1004',nombre:'RASURADORA MyCOCOS® 4.0 BLUE',costoB:13699,costoN:11512,precioLista:59000,isPack:false,tieneReceta:false,receta:[],ventasMes:359/4.3,precioHistorico:59000,stockActual:180,vel:{velInicial:359,mults:mkMults()}},
+    {sku:'MC-33021-AZ-1001',nombre:'RASURADORA DE NARIZ Y OREJAS - MyCOCOS',costoB:6729,costoN:5655,precioLista:33990,isPack:false,tieneReceta:false,receta:[],ventasMes:347/4.3,precioHistorico:33990,stockActual:95,vel:{velInicial:347,mults:mkMults()}},
+    {sku:'MC-33051-AZ-1001',nombre:'Safety Razor Afeitadora Mycocos',costoB:8923,costoN:7498,precioLista:33990,isPack:false,tieneReceta:false,receta:[],ventasMes:223/4.3,precioHistorico:33990,stockActual:40,vel:{velInicial:223,mults:mkMults()}},
+    {sku:'MC-33081-AZ-1001',nombre:'Rasuradora Facial DAILY SHAVER',costoB:10767,costoN:9048,precioLista:49990,isPack:false,tieneReceta:false,receta:[],ventasMes:286/4.3,precioHistorico:49990,stockActual:310,vel:{velInicial:286,mults:mkMults()}},
+    {sku:'MC-33131-NE-1002',nombre:'HOJILLAS SKINSECURE 4.0 Negra',costoB:3050,costoN:2563,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:155/4.3,precioHistorico:17990,stockActual:850,vel:{velInicial:155,mults:mkMults()}},
+    {sku:'MC-33131-AZ-1002',nombre:'HOJILLAS SKINSECURE 4.0 Azul',costoB:3050,costoN:2563,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:110/4.3,precioHistorico:17990,stockActual:720,vel:{velInicial:110,mults:mkMults()}},
+    {sku:'MC-33321-SC-5651',nombre:'BÁLSAMO AFTER SHAVE 50ML',costoB:3035,costoN:2550,precioLista:14990,isPack:false,tieneReceta:false,receta:[],ventasMes:100/4.3,precioHistorico:14990,stockActual:12,vel:{velInicial:100,mults:mkMults()}},
+    {sku:'MC-33341-SC-1651',nombre:'ESPUMA PARA AFEITAR 150ML',costoB:2752,costoN:2313,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:74/4.3,precioHistorico:17990,stockActual:290,vel:{velInicial:74,mults:mkMults()}},
+    {sku:'MC-33371-SC-1001',nombre:'Desodorante de Cocos 60ML',costoB:4596,costoN:3862,precioLista:17990,isPack:false,tieneReceta:false,receta:[],ventasMes:53/4.3,precioHistorico:17990,stockActual:6,vel:{velInicial:53,mults:mkMults()}},
+    {sku:'MC-22211-CA-1001',nombre:'TRAVEL BAG MyCOCOS 1.0',costoB:7461,costoN:6270,precioLista:27990,isPack:false,tieneReceta:false,receta:[],ventasMes:89/4.3,precioHistorico:27990,stockActual:55,vel:{velInicial:89,mults:mkMults()}},
+    {sku:'MC-33253-AZ-1004',nombre:'KIT DE CORTAUÑAS 4.0 BLUE',costoB:5608,costoN:4713,precioLista:19990,isPack:false,tieneReceta:false,receta:[],ventasMes:104/4.3,precioHistorico:19990,stockActual:180,vel:{velInicial:104,mults:mkMults()}},
+    {sku:'MC-33441-SC-1002',nombre:'Toallitas Húmedas Everyday Wipe 30und',costoB:914,costoN:768,precioLista:6990,isPack:false,tieneReceta:false,receta:[],ventasMes:295/4.3,precioHistorico:6990,stockActual:2200,vel:{velInicial:295,mults:mkMults()}},
+    {sku:'MC-33863-NE-1002',nombre:'KIT PERFECT TRIO MyCOCOS® NEGRO (4.0)',costoB:29351,costoN:24665,precioLista:95990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-NE-1004',qty:1},{comp:'MC-33051-AZ-1001',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioHistorico:95990,stockActual:38,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33863-AZ-1002',nombre:'KIT PERFECT TRIO MyCOCOS® AZUL (4.0)',costoB:29351,costoN:24665,precioLista:95990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-AZ-1004',qty:1},{comp:'MC-33051-AZ-1001',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioHistorico:95990,stockActual:22,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33823-NE-1002',nombre:'Kit PRIME + Rasuradora nasal (Negro 4.0)',costoB:20428,costoN:17166,precioLista:79990,isPack:true,tieneReceta:true,receta:[{comp:'MC-33011-NE-1004',qty:1},{comp:'MC-33021-AZ-1001',qty:1}],ventasMes:0,precioHistorico:79990,stockActual:65,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33512-NE-1003',nombre:'THE CRACK PACKS Travel Café/MCC Negra (4.0)',costoB:95701,costoN:80421,precioLista:139900,isPack:true,tieneReceta:false,receta:[],ventasMes:0,precioHistorico:139900,stockActual:120,vel:{velInicial:0,mults:mkMults()}},
+    {sku:'MC-33171-SC-1001',nombre:'HOJILLA REPUESTO SAFETY RAZOR X5',costoB:445,costoN:374,precioLista:4990,isPack:false,tieneReceta:false,receta:[],ventasMes:171/4.3,precioHistorico:4990,stockActual:1800,vel:{velInicial:171,mults:mkMults()}},
   ];
 
   recalcAll();
